@@ -23,11 +23,15 @@ BLUE = (0, 0, 255)
 DIR = 2
 SLEEP_TIME = 0.01
 
+SCORE = 0
+
 pygame.init()
 
 windowSurface = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption('dot thingy')
 windowSurface.fill(WHITE)
+font = pygame.font.Font(None, 20)
+TEXT = font.render('Score: 0', True, BLACK)
 
 def update_obstacle_position():
     global OBS_X
@@ -58,38 +62,45 @@ def update_position():
     global TOP
 
     if DIR == 0:
-        TOP -= STEP
-        if TOP < 0:
-            TOP = 0
+        if TOP > 0:
+            TOP -= STEP
     elif DIR == 1:
-        TOP += STEP
-        if TOP > HEIGHT - DOT_SIZE:
-            TOP = HEIGHT - DOT_SIZE
+        if TOP < HEIGHT - DOT_SIZE:
+            TOP += STEP
     elif DIR == 2:
-        LEFT -= STEP
-        if LEFT < 0:
-            LEFT = 0
+        if LEFT > 0:
+            LEFT -= STEP
     elif DIR == 3:
-        LEFT += STEP
-        if LEFT > WIDTH - DOT_SIZE:
-            LEFT = WIDTH - DOT_SIZE
+        if LEFT < WIDTH - DOT_SIZE:
+            LEFT += STEP
+
     pygame.draw.rect(windowSurface, RED, (LEFT, TOP, DOT_SIZE, DOT_SIZE))
+
 
 def collision():
     return abs(LEFT - OBS_X) < 10 and abs(TOP - OBS_Y) < 10
 
+
 def increase_speed():
     global SLEEP_TIME
-    SLEEP_TIME -= 0.001
+    if SLEEP_TIME > 0.001:
+        SLEEP_TIME *= 0.8
+    print(SLEEP_TIME)
+
 
 def update():
+    global SCORE, TEXT
     windowSurface.fill(WHITE)
     update_position()
     draw_obstacle()
     if collision():
         update_obstacle_position()
         increase_speed()
+        SCORE += 1
+        TEXT = font.render('Score: {}'.format(SCORE), True, BLACK)
+    windowSurface.blit(TEXT, (10, 10))
     pygame.display.update()
+
 
 update_obstacle_position()
 while True:
@@ -97,6 +108,9 @@ while True:
     for event in pygame.event.get():
         if event.type == pygame.KEYDOWN:
             update_dir(event)
+        elif event.type == pygame.QUIT:
+            pygame.quit()
+            sys.exit()
     update()
 
 
