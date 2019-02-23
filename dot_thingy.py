@@ -2,14 +2,18 @@
 import random
 import pygame, sys
 import time
+from collections import deque
 
 WIDTH = 640
 HEIGHT = 480
-STEP = 2
-DOT_SIZE = 20
+STEP = 3
+DOT_SIZE = 15
 
 TOP = 0
 LEFT = 0
+
+INCREASE_CONSTANT = 6
+GAMEOVER = False
 
 OBS_X = 0
 OBS_Y = 0
@@ -20,10 +24,14 @@ RED = (255, 0, 0)
 GREEN = (0, 255, 0)
 BLUE = (0, 0, 255)
 
-DIR = 2
+DIR = 3
 SLEEP_TIME = 0.01
+COLL_TOLERANCE = 15
 
 SCORE = 0
+INITIAL_HISTORY = [(0,0), (0,0), (0,0), (0,0), (0,0), (0,0)]
+
+p_hist = deque(INITIAL_HISTORY)
 
 pygame.init()
 
@@ -31,7 +39,9 @@ windowSurface = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption('dot thingy')
 windowSurface.fill(WHITE)
 font = pygame.font.Font(None, 20)
+bigfont = pygame.font.Font(None, 50)
 TEXT = font.render('Score: 0', True, BLACK)
+
 
 def update_obstacle_position():
     global OBS_X
@@ -48,18 +58,21 @@ def draw_obstacle():
 def update_dir(event):
     global DIR
 
-    if event.key == pygame.K_UP:
+    if event.key == pygame.K_UP and DIR != 1:
         DIR = 0
-    elif event.key == pygame.K_DOWN:
+    elif event.key == pygame.K_DOWN and DIR != 0:
         DIR = 1
-    elif event.key == pygame.K_LEFT:
+    elif event.key == pygame.K_LEFT and DIR != 3:
         DIR = 2
-    elif event.key == pygame.K_RIGHT:
+    elif event.key == pygame.K_RIGHT and DIR != 2:
         DIR = 3
 
 def update_position():
     global LEFT
     global TOP
+
+    p_hist.rotate()
+    p_hist[0] = (LEFT, TOP)
 
     if DIR == 0:
         if TOP > 0:
@@ -74,18 +87,26 @@ def update_position():
         if LEFT < WIDTH - DOT_SIZE:
             LEFT += STEP
 
-    pygame.draw.rect(windowSurface, RED, (LEFT, TOP, DOT_SIZE, DOT_SIZE))
+    for left, top in p_hist:
+        pygame.draw.rect(windowSurface, RED, (left, top, DOT_SIZE, DOT_SIZE))
 
 
 def collision():
-    return abs(LEFT - OBS_X) < 10 and abs(TOP - OBS_Y) < 10
+    return abs(LEFT - OBS_X) < COLL_TOLERANCE and abs(TOP - OBS_Y) < COLL_TOLERANCE
 
 
-def increase_speed():
-    global SLEEP_TIME
-    if SLEEP_TIME > 0.001:
-        SLEEP_TIME *= 0.8
-    print(SLEEP_TIME)
+def check_gameover():
+    global GAMEOVER
+    if (LEFT, TOP) in p_hist and (LEFT, TOP) != (0, 0):
+        GAMEOVER_TEXT = bigfont.render('Game Over! Score: {}'.format(SCORE), True, BLACK)
+        windowSurface.blit(GAMEOVER_TEXT, (WIDTH / 4, HEIGHT / 2))
+        pygame.display.update()
+        GAMEOVER = True
+
+def increase_length():
+    global p_hist
+    for _ in range(0, INCREASE_CONSTANT):
+        p_hist.append(p_hist[0])
 
 
 def update():
@@ -95,22 +116,35 @@ def update():
     draw_obstacle()
     if collision():
         update_obstacle_position()
-        increase_speed()
+        increase_length()
         SCORE += 1
         TEXT = font.render('Score: {}'.format(SCORE), True, BLACK)
     windowSurface.blit(TEXT, (10, 10))
-    pygame.display.update()
 
 
 update_obstacle_position()
 while True:
-    time.sleep(SLEEP_TIME)
-    for event in pygame.event.get():
-        if event.type == pygame.KEYDOWN:
-            update_dir(event)
-        elif event.type == pygame.QUIT:
-            pygame.quit()
-            sys.exit()
-    update()
+    while not GAMEOVER:
+        time.sleep(SLEEP_TIME)
+        for event in pygame.event.get():
+            if event.type == pygame.KEYDOWN:
+                update_dir(event)
+            elif event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+        update()
+        check_gameover()
+        pygame.display.update()
+    time.sleep(3)
+    p_hist = deque(INITIAL_HISTORY)
+    LEFT = 0
+    TOP = 0
+    SCORE = 0
+    GAMEOVER = False
+    DIR = 3
+    TEXT = font.render('Score: {}'.format(SCORE), True, BLACK)
+    update_obstacle_position()
+
+
 
 
